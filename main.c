@@ -5,6 +5,8 @@
 #include <error.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <getopt.h>
@@ -22,6 +24,8 @@ static LL summAll		= 0;
 static flagTime = 0;
 
 static flagLink = 0;
+
+static flagVerbose = 0;
 
 //count tree in recur function
 static count_tree = 0;
@@ -86,7 +90,11 @@ void check_dir(char *dir)
 	char *dir1 = 0;
 	int len = 0;
 
-
+	if(flagVerbose)
+	{
+		printf("tree %d\n", count_tree);
+	}
+	
 	if(count_tree == 0)
 	{
 		int res;
@@ -114,7 +122,6 @@ void check_dir(char *dir)
 		}
 	}
 
-	//printf("tree %d\n", count_tree);
 	count_tree++;
 
 
@@ -129,8 +136,6 @@ void check_dir(char *dir)
 		return;
 	}
 
-
-	
 	if(dir1[len-1] != '/')
 	{
 		free(dir1);
@@ -140,17 +145,38 @@ void check_dir(char *dir)
 	}
 
 	count = scandir(dir, &namelist, 0, 0);
-
+	
+	if(flagVerbose)
+	{
+		printf("count %d dir %s\n", count, dir);
+	}
+	
 	if(count < 0)
 	{
 		//printf("Error. read dir %s\n", dir);
 	}
 	else
 	{
-		for(i = 2; i<count; i++)
+		for(i = 0; i<count; i++)
 		{
 			char name[1024];
 			int res;
+			
+			//if(flagVerbose)
+			//{
+			//	printf("%d %s\n", i,  namelist[i]->d_name);
+			//}
+			
+			if(strcmp(namelist[i]->d_name, ".") == 0)
+			{
+				continue;
+			}
+
+			if(strcmp(namelist[i]->d_name, "..") == 0)
+			{
+				continue;
+			}
+			
 			strcpy(name, dir1);
 			strcat(name, namelist[i]->d_name);
 
@@ -193,7 +219,7 @@ int main(int argc, char **argv)
 	struct timeval tz;
 	double T1 = 0.0;
 
-	char *strFormat = "check_summ.e [OPTION...] PATH\n-t show used time\n-l use links as files\n";
+	char *strFormat = "check_summ.e [OPTION...] PATH\n-t show used time\n-l use links as files\n-v verbose\n";
 
 	char s_dir[MAX_DIR];
 	
@@ -212,12 +238,13 @@ int main(int argc, char **argv)
 			static struct option long_options[] = 
 			{
 				{"t", 0, 0, 0},
-				{"l", 0, 0, 0}
+				{"l", 0, 0, 0},
+				{"v", 0, 0, 0}
 			};
 
 			int option_index = 0;
 
-			c = getopt_long(argc, argv, "t l", long_options, &option_index);
+			c = getopt_long(argc, argv, "t l v", long_options, &option_index);
 
 			if(c == -1)
 			{
@@ -233,6 +260,11 @@ int main(int argc, char **argv)
 
 				case 'l':
 					flagLink = 1;
+					//printf("set option link as file\n");
+				break;
+
+				case 'v':
+					flagVerbose = 1;
 					//printf("set option link as file\n");
 				break;
 			}
