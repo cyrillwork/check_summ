@@ -23,6 +23,9 @@ static flagTime = 0;
 
 static flagLink = 0;
 
+//count tree in recur function
+static count_tree = 0;
+
 /*
 static int showTime = 0;
 struct poptOption optionsTable[] = 
@@ -40,15 +43,81 @@ void handler_sig(int numsig)
 	printf("current size = %u\n", sizeAll);
 }
 
+void check_file(char *name, size_t len_f)
+{
+	int in_fd = 0;
+	//size_t len_f = st.st_size;
+	
+	if(len_f > 0)
+	{
+		in_fd = open(name, O_RDONLY);
+		if(in_fd != -1)
+		{
+			int len1 = 0;
+			int jjj = 0;
+			unsigned char temp2[BUFSIZE];
+			while( (len1 = read(in_fd, temp2, BUFSIZE)) > 0 )
+			{
+				int iii;
+				for(iii = 0; iii < len1; iii++)
+				{
+					summAll += (temp2[iii] * (jjj + iii + 1));
+				}
+				jjj += len1;
+			}
+			close(in_fd);
+		}
+		else
+		{
+			perror("open file");
+		}
+	}
+	sizeAll += len_f;
+	countAll++;
+}
+
 void check_dir(char *dir)
 {
 	int i;
+	struct stat st;
 	int count = 0;
 	struct dirent **namelist = 0;
 	struct dirent *d;
 	char *dir1 = 0;
 	int len = 0;
-	
+
+
+	if(count_tree == 0)
+	{
+		int res;
+//check i
+		if(flagLink)
+		{
+			res = stat(dir, &st);
+		}
+		else
+		{
+			res = lstat(dir, &st);
+		}
+		if(res == 0)
+		{
+			if ( (st.st_mode & S_IFMT) == S_IFREG )
+			{
+				//printf("It is a file\n");
+				check_file(dir, st.st_size);
+				return;
+			}
+			else
+			{
+				//printf("It is a dir\n");
+			}
+		}
+	}
+
+	//printf("tree %d\n", count_tree);
+	count_tree++;
+
+
 	if(dir && ((len = strlen(dir)) > 0) )
 	{
 		dir1 = (char*)malloc(len + 1);
@@ -59,6 +128,8 @@ void check_dir(char *dir)
 		printf("Error. Check_dir wrong dir\n");
 		return;
 	}
+
+
 	
 	if(dir1[len-1] != '/')
 	{
@@ -67,26 +138,17 @@ void check_dir(char *dir)
 		strcpy(dir1, dir);
 		strcat(dir1, "/");
 	}
+
 	count = scandir(dir, &namelist, 0, 0);
+
 	if(count < 0)
 	{
-		int res;
-		struct stat st;
-		res = stat(dir, &st);
-		if(res == 0)
-		{
-		}
-		else
-		{
-			printf("Error. read file %s\n", dir);
-		}
-		//perror("scandir");
+		//printf("Error. read dir %s\n", dir);
 	}
 	else
 	{
 		for(i = 2; i<count; i++)
 		{
-			struct stat st;
 			char name[1024];
 			int res;
 			strcpy(name, dir1);
@@ -106,49 +168,21 @@ void check_dir(char *dir)
 				if ( (st.st_mode & S_IFMT) != S_IFREG )
 				{
 					check_dir(name);
-					
 				}
 				else
 				{
-					int in_fd = 0;
-					size_t len_f = st.st_size;
-					if(len_f > 0)
-					{
-						in_fd = open(name, O_RDONLY);
-						if(in_fd != -1)
-						{
-							int len1 = 0;
-							int jjj = 0;
-							unsigned char temp2[BUFSIZE];
-							while( (len1 = read(in_fd, temp2, BUFSIZE)) > 0 )
-							{
-								int iii;
-								for(iii = 0; iii < len1; iii++)
-								{
-									summAll += (temp2[iii] * (jjj + iii + 1));
-								}
-								jjj += len1;
-							}
-							close(in_fd);
-						}
-						else
-						{
-							perror("open file");
-						}
-					}
-					sizeAll += st.st_size;
-					countAll++;
+					check_file(name, st.st_size);
 				}
 			}
 			else
 			{
-				printf("Error. read file %s\n", name);
+				//printf("Error. read file %s\n", name);
 			}
 		}
-		//printf("count=%d\n", count);
 		free(namelist);
 	}
 	free(dir1);
+	count_tree--;
 }
 
 
@@ -159,11 +193,9 @@ int main(int argc, char **argv)
 	struct timeval tz;
 	double T1 = 0.0;
 
-	char *strFormat = "check_summ.e [OPTION...] PATH\n-t show useage time\n-l use links as files\n";
+	char *strFormat = "check_summ.e [OPTION...] PATH\n-t show used time\n-l use links as files\n";
 
 	char s_dir[MAX_DIR];
-	
-	//printf("Check sum\n");
 	
 	if(argc < 2)
 	{
@@ -172,14 +204,6 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-/*
-		if(strlen(argv[1]) > (MAX_DIR - 1))
-		{
-			printf("Very long start path dir!!!\n");
-			return -1;
-		}
-*/
-
 
 		while(1)
 		{
@@ -236,7 +260,7 @@ int main(int argc, char **argv)
 
 	check_dir(s_dir);
 
-	printf("%u\n", summAll);	
+	printf("%u\n", summAll);
 
 	if(flagTime)
 	{
